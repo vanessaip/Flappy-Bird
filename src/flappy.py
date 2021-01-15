@@ -3,14 +3,14 @@ import sys
 import random
 
 # Window constants
-SCREEN_HEIGHT = 700     # changing SCREEN_HEIGHT scales the rest of the graphics as well
+SCREEN_HEIGHT = 700     # changing SCREEN_HEIGHT scales the rest of the graphics as well // TODO: <= 500 cuts off bird
 SCALE = SCREEN_HEIGHT / 512     # original background image height
 SCREEN_WIDTH = round(288 * SCALE)
 
 pygame.init()
 screen = pygame.display.set_mode((SCREEN_WIDTH, SCREEN_HEIGHT))
-game_font = pygame.font.Font('04B_19.ttf', round(37 * SCALE))
-game_font2 = pygame.font.Font('04B_19.ttf', round(40 * SCALE))
+game_font = pygame.font.Font('04B_19.ttf', round(28 * SCALE))       # 37, 40
+game_font2 = pygame.font.Font('04B_19.ttf', round(29 * SCALE))
 
 
 # draws 2 floor images beside each other starting at floor_x
@@ -24,7 +24,8 @@ def draw_bird(bird_index, bird_rect, movement):
     angle = -movement * 4.5
     if angle < -90:
         angle = -90
-    img = pygame.transform.rotozoom(bird[bird_index], angle, 1)
+    # img = pygame.transform.rotozoom(bird[bird_index], angle, 1)  # filtered
+    img = pygame.transform.rotate(bird[bird_index], angle)
     screen.blit(img, bird_rect)
 
 
@@ -40,10 +41,21 @@ def draw_pipes(pipe_rects):
 # draws score
 def draw_score():
     text = game_font.render(str(score), True, (255, 255, 255))
+    text_rect = text.get_rect(midtop=(SCREEN_WIDTH / 2, SCREEN_HEIGHT / 7))
     shadow = game_font2.render(str(score), True, (0, 0, 0))
+    shadow_rect = shadow.get_rect(midtop=(SCREEN_WIDTH / 2 + 1, SCREEN_HEIGHT / 7))
 
-    screen.blit(shadow, (SCREEN_WIDTH / 2 + 1, SCREEN_HEIGHT / 6))
-    screen.blit(text, (SCREEN_WIDTH / 2, SCREEN_HEIGHT / 6))
+    screen.blit(shadow, shadow_rect)
+    screen.blit(text, text_rect)
+
+
+def draw_message(game_state):
+    if game_state == START:
+        get_ready_rect = get_ready.get_rect(center=(SCREEN_WIDTH / 2, SCREEN_HEIGHT / 3.5))
+        tap_rect = tap.get_rect(center=(SCREEN_WIDTH / 2, BIRD_START_Y))
+
+        screen.blit(get_ready, get_ready_rect)
+        screen.blit(tap, tap_rect)
 
 
 # returns rects for new pair of pipes   !!! make resizable
@@ -67,8 +79,8 @@ def move_pipes(pipe_rects):
 def check_collision(bird_rect, pipe_rects):
     if bird_rect.collidelist(pipe_rects) != -1 or (bird_rect.top <= 0 and collide_pipe_left(bird_rect, pipe_rects)):
         collide_sound.play()
-        return False
-    return True
+        return GAME_OVER
+    return PLAYING
 
 
 # returns true if rect collides with any rect in rect_list, otherwise returns false
@@ -90,18 +102,21 @@ def check_score(pipe_rects):
 
 
 # returns scaled image with filename
-def load_image(filename):
+def load_image(filename, scale2):
     img = pygame.image.load('assets/' + filename + '.png').convert_alpha()
-    return pygame.transform.scale(img, (round(img.get_width() * SCALE), round(img.get_height() * SCALE)))
+    return pygame.transform.scale(img,
+                                  (round(img.get_width() * SCALE * scale2), round(img.get_height() * SCALE * scale2)))
 
 
 # Images
-bg = load_image('background-day')
-floor = load_image('base')
+bg = load_image('background-day', 1)
+floor = load_image('base', 1)
 bird_colour = random.choice(['red', 'blue', 'yellow'])
-bird = [load_image(bird_colour + 'bird-upflap'), load_image(bird_colour + 'bird-midflap'),
-        load_image(bird_colour + 'bird-downflap')]
-pipe = load_image('pipe-green')
+bird = [load_image(bird_colour + 'bird-upflap', 1), load_image(bird_colour + 'bird-midflap', 1),
+        load_image(bird_colour + 'bird-downflap', 1)]
+pipe = load_image('pipe-green', 1)
+get_ready = load_image('getready', 2)
+tap = load_image('tap', 2)
 
 # Sounds
 flap_sound = pygame.mixer.Sound('sound/sfx_wing.wav')
@@ -110,7 +125,7 @@ score_sound = pygame.mixer.Sound('sound/sfx_point.wav')
 
 # Rendering constants
 BIRD_X = SCREEN_WIDTH / 3
-BIRD_START_Y = SCREEN_HEIGHT / 3
+BIRD_START_Y = SCREEN_HEIGHT / 2
 
 PIPE_HEIGHTS = [height * SCALE for height in [365, 328, 255, 182]]
 
@@ -125,7 +140,9 @@ GRAVITY = 0.7       # TODO: make resizable 0.7, 9
 JUMP = 9
 movement = 0
 FLAP = pygame.event.custom_type()
-pygame.time.set_timer(FLAP, 50)
+pygame.time.set_timer(FLAP, 100)
+HOVER = pygame.event.custom_type()
+pygame.time.set_timer(HOVER, 200)
 
 # Pipe variables
 pipe_rects = []
@@ -139,7 +156,10 @@ floor_x = 0
 score = 0
 
 # Game state
-playing = True
+START = 0
+PLAYING = 1
+GAME_OVER = 2
+game_state = START
 
 
 def draw():
@@ -148,44 +168,53 @@ def draw():
     draw_floor(floor_x)
     draw_bird(bird_index, bird_rect, movement)
     draw_score()
+    draw_message(game_state)
 
-# TODO: multiple hit sounds/continuing even after collision if space bar is pressed
+
 while True:
     # Event handling
     for event in pygame.event.get():
         if event.type == pygame.QUIT:
             pygame.quit()
             sys.exit()
-        if playing:
+        if game_state != GAME_OVER:
             if event.type == pygame.KEYDOWN:        # could just make any key the command
                 if event.key == pygame.K_SPACE:
                     movement = -JUMP
                     flap_sound.play()
+                    game_state = PLAYING
 
             if event.type == FLAP:
                 bird_index = (bird_index + 1) % 3       # 3 frames
+        if event.type == HOVER:     # TODO: hovering
+            if movement == 0:
+                movement += 5 * GRAVITY
+            else:
+                movement -= 5 * -GRAVITY
 
-            if event.type == SPAWN_PIPE:
-                pipe_rects.extend(load_pipe_rects())
-        else:
+        if event.type == SPAWN_PIPE and game_state == PLAYING:
+            pipe_rects.extend(load_pipe_rects())
+
+        if game_state == GAME_OVER:
             if event.type == pygame.KEYDOWN:
                 if event.key == pygame.K_SPACE:
-                    playing = True
+                    game_state = START
                     bird_rect.centery = BIRD_START_Y
                     movement = 0
                     pipe_rects.clear()
                     score = 0
-# Continuous stuff
-    if bird_rect.bottom < FLOOR_Y - 15:
+# if bird_rect has not touched the floor and game_state is not START, then update bird_rect position
+    if bird_rect.bottom < FLOOR_Y - 15 and game_state != START:
         # update bird rect
         movement += GRAVITY
         bird_rect.centery += movement
-    else:
-        playing = False
+    elif game_state == PLAYING:
+        game_state = GAME_OVER
 
-    if playing:
+
+    if game_state == PLAYING:
         # check collision
-        playing = check_collision(bird_rect, pipe_rects)
+        game_state = check_collision(bird_rect, pipe_rects)
 
         # update score
         check_score(pipe_rects)
@@ -193,6 +222,7 @@ while True:
         # scroll pipes
         pipe_rects = move_pipes(pipe_rects)
 
+    if game_state != GAME_OVER:
         # scroll floor
         floor_x -= SCROLL_SPEED
         if floor_x <= -floor.get_width():
