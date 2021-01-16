@@ -22,7 +22,9 @@ def draw_floor(floor_x):
 # draws bird at bird_rect
 def draw_bird(bird_index, bird_rect, movement):
     angle = -movement * 4.5
-    if angle < -90:
+    if game_state == START:
+        angle = 0
+    elif angle < -90:
         angle = -90
     # img = pygame.transform.rotozoom(bird[bird_index], angle, 1)  # filtered
     img = pygame.transform.rotate(bird[bird_index], angle)
@@ -186,11 +188,13 @@ while True:
 
             if event.type == FLAP:
                 bird_index = (bird_index + 1) % 3       # 3 frames
-        if event.type == HOVER:     # TODO: hovering
-            if movement == 0:
-                movement += 5 * GRAVITY
+
+        if event.type == HOVER and game_state == START:     # TODO: hovering
+            if movement <= 0:
+                movement = 7
             else:
-                movement -= 5 * -GRAVITY
+                movement = -7
+            bird_rect.centery += movement
 
         if event.type == SPAWN_PIPE and game_state == PLAYING:
             pipe_rects.extend(load_pipe_rects())
@@ -210,7 +214,6 @@ while True:
         bird_rect.centery += movement
     elif game_state == PLAYING:
         game_state = GAME_OVER
-
 
     if game_state == PLAYING:
         # check collision
