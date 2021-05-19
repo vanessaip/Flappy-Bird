@@ -22,3 +22,4 @@ https://user-images.githubusercontent.com/74160990/118747649-69503980-b828-11eb-
 ## Improvements
 - Display medals according to score
 - Save high score between restarts
+- Faby sometimes appears to go through the base after falling
