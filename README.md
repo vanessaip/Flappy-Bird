@@ -15,4 +15,10 @@ https://user-images.githubusercontent.com/74160990/118747649-69503980-b828-11eb-
 ## Features
 - Continuous stream of pipe obstacles
 - Simply tap to play again
+- Faby animated to tilt downwards as it falls, and upward when flying up
+- Sound effects
 - High scores
+
+## Improvements
+- Display medals according to score
+- Save high score between restarts
