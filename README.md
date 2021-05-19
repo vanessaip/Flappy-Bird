@@ -1,6 +1,6 @@
 # Flappy Bird Remake
 
-## Screenshots
+## Demo
 
 
 https://user-images.githubusercontent.com/74160990/118746266-eaf29800-b825-11eb-91e4-42cf00f34e07.mp4
